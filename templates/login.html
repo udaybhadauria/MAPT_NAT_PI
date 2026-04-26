@@ -164,6 +164,18 @@
     .slack-icon {
       font-size: 1.5rem;
     }
+
+    .support-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .support-link .slack-icon {
+      height: 24px;
+      width: 24px;
+      font-size: inherit;
+    }
   </style>
 </head>
 
@@ -211,9 +223,13 @@
       <!-- Slack Help -->
       <div class="slack-section">
         <span>Need Help?</span>
-        <a href="https://comcast.enterprise.slack.com/archives/C0AV8U9DY78" class="slack-link" target="_blank">
-          <img src="{{ url_for('static', filename='slack-logo.svg') }}" alt="Slack" style="height: 24px; width: 24px;">
-          <span>Slack Support</span>
+        <a href="https://comcast.enterprise.slack.com/archives/C0AV8U9DY78"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="slack-link support-link"
+           aria-label="Open @mapt-support Slack channel">
+          <img src="{{ url_for('static', filename='slack-logo.svg') }}" alt="Slack" class="slack-icon" />
+          <span>@mapt-support</span>
         </a>
       </div>
     </div>

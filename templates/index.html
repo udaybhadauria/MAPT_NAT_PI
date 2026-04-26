@@ -170,7 +170,16 @@
     #outputCard.border-success { border: 2px solid #28a745; }
     #outputCard.border-danger  { border: 2px solid #dc3545; }
     #outputCard.border-warning { border: 2px solid #ffc107; }
+    .support-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
 
+    .support-link .slack-icon {
+      height: 20px;
+      width: 20px;
+    }
     .session-warning {
       position: fixed;
       bottom: 20px;
@@ -226,12 +235,13 @@
         <i class="bi bi-file-earmark-pdf"></i> Doc.
       </a>
 
-      <a href="https://comcast.enterprise.slack.com/archives/C0AV8U9DY78" 
-         class="navbar-link" 
+      <a href="https://comcast.enterprise.slack.com/archives/C0AV8U9DY78"
          target="_blank"
-         title="Get Help on Slack">
+         rel="noopener noreferrer"
+         class="navbar-link support-link"
+         aria-label="Open @mapt-support Slack channel">
         <i class="bi bi-question-circle"></i> Help?
-        <img src="{{ url_for('static', filename='slack-logo.svg') }}" alt="Slack" style="height: 20px; width: 20px;">
+        <img src="{{ url_for('static', filename='slack-logo.svg') }}" alt="Slack" style="height: 20px; width: 20px;" class="slack-icon" />
       </a>
     </div>
 
