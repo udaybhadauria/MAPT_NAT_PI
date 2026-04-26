@@ -51,28 +51,24 @@
     }
 
     .login-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 40px 20px;
-      text-align: center;
+      background: linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);
+      padding: 28px 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       color: white;
     }
 
     .login-header img {
-      height: 80px;
-      margin-bottom: 15px;
+      height: 70px;
+      object-fit: contain;
     }
 
     .login-header h1 {
-      font-size: 2rem;
+      font-size: 1.8rem;
       font-weight: 700;
       margin: 0;
       letter-spacing: -0.5px;
-    }
-
-    .login-header p {
-      font-size: 0.95rem;
-      margin: 8px 0 0 0;
-      opacity: 0.9;
     }
 
     .login-body {
@@ -92,7 +88,7 @@
     }
 
     .form-control {
-      border: 2px solid #e0e0e0;
+      border: 2px solid #ddd6fe;
       border-radius: 10px;
       padding: 12px 16px;
       font-size: 1rem;
@@ -101,9 +97,9 @@
     }
 
     .form-control:focus {
-      border-color: #667eea;
+      border-color: #c4b5fd;
       background-color: #fff;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 3px rgba(196, 181, 253, 0.25);
     }
 
     .form-control::placeholder {
@@ -113,7 +109,7 @@
     .login-btn {
       width: 100%;
       padding: 12px 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);
       border: none;
       border-radius: 10px;
       color: white;
@@ -126,7 +122,7 @@
 
     .login-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 10px 25px rgba(167, 139, 250, 0.4);
     }
 
     .login-btn:active {
@@ -195,9 +191,8 @@
   <div class="login-container">
     <!-- Header -->
     <div class="login-header">
-      <img src="{{ url_for('static', filename='CTC.png') }}" alt="Comcast Logo">
       <h1>MAP-T Config</h1>
-      <p>Secure Access Portal</p>
+      <img src="{{ url_for('static', filename='CTC.png') }}" alt="Comcast Logo">
     </div>
 
     <!-- Login Form -->
