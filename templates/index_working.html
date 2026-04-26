@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MAP-T Config</title>
+  <link rel="icon"
+      type="image/png"
+      href="{{ url_for('static', filename='logo.png') }}">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body { background-color: #f7f9fc; font-family: 'Segoe UI', sans-serif; }
+    .card { box-shadow: 0 3px 12px rgba(0,0,0,0.08); border-radius: 12px; }
+    .required::after { content: " *"; color: #dc3545; }
+    .footer { color: #6c757d; font-size: .9rem; text-align: center; margin-top: 2rem; }
+    .section-title i { color: #5b6ac4; margin-right: .5rem; }
+    .card-header { background-color: #f1f3f6; font-weight: 600; }
+
+    .readonly-field {
+      background-color: #e9ecef !important;
+      cursor: not-allowed;
+    }
+
+    .error-border {
+      border: 2px solid #dc3545 !important;
+    }
+
+    .heading-hover:hover {
+      color: #0d6efd !important; /* Bootstrap primary blue */
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .led {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: gray;  /* default */
+      margin-left: 8px;
+    }
+
+    /* LED Colors */
+    .led.green { background: #28a745; }   /* up / active */
+    .led.red   { background: #dc3545; }   /* down / inactive */
+    .led.yellow{ background: #ffc107; }   /* unknown state */
+    .led.gray  { background: #6c757d; }   /* stale / no data */
+
+    .top-right-img {
+      position: absolute;
+      top: 20px;
+      right:70px;
+      height: 140px;
+    }
+
+    #outputCard.border-success { border: 2px solid #28a745; }
+    #outputCard.border-danger  { border: 2px solid #dc3545; }
+    #outputCard.border-warning { border: 2px solid #ffc107; }
+  </style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg bg-light border-bottom mb-4">
+  <div class="container position-relative text-center">
+    <!-- Logo in top-right corner -->
+    <img src="{{ url_for('static', filename='CTC.png') }}" class="top-right-img" 
+         style="position:absolute; top:10px; right:60px; height:120px;">
+
+    <!-- Heading container -->
+    <div class="heading-container">
+      <!-- Main Heading -->
+      <h1 class="fw-bold display-5 mb-1 heading-hover">
+        <i class="bi bi-hdd-network"></i> MAP-T Config Generator
+      </h1>
+
+      <!-- Subheading -->
+      <p class="text-muted lead mb-0">
+        Generate DHCP4 and DHCPv6 NAT64 configurations
+      </p>
+    </div>
+  </div>
+</nav>
+
+<div class="container my-3">
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="alert alert-success">
+        {% for message in messages %}
+          {{ message }}
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div id="alertBox" class="d-none"></div>
+
+  <!-- FORM: added method="POST" -->
+  <form id="configForm" method="POST" novalidate>
+
+    <!-- DHCP6 -->
+    <div class="card mb-4">
+      <div class="card-header heading-hover">
+        <h5 class="mb-0 section-title">
+          <i class="bi bi-gear-fill"></i> Core DHCPv6/SLAAC Configuration
+        </h5>
+      </div>
+      <div class="card-body row g-3">
+        <div class="col-md-6">
+          <label class="form-label required">Subnet</label>
+          <input type="text" class="form-control"
+                 name="subnet" value="{{ config.dhcp6.subnet or 'fd00::/64' }}" required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label required">DNS</label>
+          <input type="text" class="form-control"
+                 name="dns"
+                 value="{{ (config.dhcp6.dns|join(',')) or '2001:4860:4860::8888,2001:4860:4860::8844' }}"
+                 required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label required">LAN Pool Start (DHCPv6)</label>
+          <input type="text" class="form-control"
+                 name="pool_start" value="{{ config.dhcp6.pool.start or 'fd00::100' }}" required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label required">LAN Pool End (DHCPv6)</label>
+          <input type="text" class="form-control"
+                 name="pool_end" value="{{ config.dhcp6.pool.end or 'fd00::200' }}" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- S46 Rule -->
+    <div class="card mb-4">
+      <div class="card-header heading-hover">
+        <h5 class="mb-0 section-title">
+          <i class="bi bi-lock-fill"></i> S46 Rule (Auto-derived)
+        </h5>
+      </div>
+      <div class="card-body row g-3">
+        <div class="col-md-6">
+          <label class="form-label">v4_prefix</label>
+          <input type="text" class="form-control readonly-field" readonly
+                 name="v4_prefix" value="{{ config.s46.v4_prefix }}">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">v4_plen</label>
+          <input type="number" class="form-control readonly-field" readonly
+                 name="v4_plen" value="{{ config.s46.v4_plen }}">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">ea_len</label>
+          <input type="number" class="form-control readonly-field" readonly
+                 name="ea_len" value="{{ config.s46.ea_len }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">v6_rule_prefix</label>
+          <input type="text" class="form-control readonly-field" readonly
+                 name="v6_rule_prefix" value="{{ config.s46.v6_rule_prefix }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">dmr</label>
+          <input type="text" class="form-control readonly-field" readonly
+                 name="dmr" value="{{ config.s46.dmr }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- Static Delegated Prefix Reservation -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center heading-hover">
+        <h5 class="mb-0 section-title">
+          <i class="bi bi-globe"></i> Static Delegated Prefix Reservation
+        </h5>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="addDeviceBtn">
+          <i class="bi bi-plus-circle"></i> Add Device
+        </button>
+      </div>
+
+      <div class="card-body table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>ESTB MAC</th>
+              <th>PSID</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="devicesBody">
+            <tr>
+              <td>
+                <input type="text" class="form-control form-control-sm mac-input"
+                       name="mac[]" placeholder="xx:xx:xx:xx:xx:xx">
+              </td>
+              <td>
+                <input type="number" class="form-control form-control-sm psid-input"
+                       name="psid[]" value="29" min="0" max="63">
+              </td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex gap-2 mb-4">
+      <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+        <i class="bi bi-check2-circle"></i> Submit
+      </button>
+      <button type="reset" class="btn btn-secondary">
+        <i class="bi bi-arrow-counterclockwise"></i> Reset
+      </button>
+    </div>
+    
+    <h4>📋 Service Health</h4>
+    <div id="services">
+      <div> DHCP4 <span id="dhcp4" class="led"></span></div>
+      <div> DHCP6 <span id="dhcp6" class="led"></span></div>
+      <div> RADVD <span id="radvd" class="led"></span></div>
+      <div> JOOL <span id="jool" class="led"></span></div>
+    </div>
+
+  </form>
+  <!-- Output from RPI_JOOL -->
+  <div class="card mb-4" id="outputCard" style="display:none;">
+    <div class="card-header heading-hover">
+      <h5 class="mb-0 section-title">
+        <i class="bi bi-diagram-3"></i> Applied Configuration
+      </h5>
+    </div>
+    <div class="card-body">
+      <pre id="outputContent" style="white-space: pre-wrap; word-wrap: break-word;"></pre>
+    </div>
+  </div>
+
+  <div class="footer">v1.0 • RPI UI Config</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  const submitBtn = document.getElementById('submitBtn');
+
+  function getRandomPsid() {
+    const used = new Set(
+      [...document.querySelectorAll('.psid-input')]
+        .map(i => Number(i.value))
+        .filter(v => !isNaN(v))
+    );
+
+    const available = [];
+    for (let i = 1; i <= 62; i++) {
+      if (!used.has(i)) {
+        available.push(i);
+      }
+    }
+
+    if (available.length === 0) {
+      alert('No available PSID left between 1 and 62.');
+      return '';
+    }
+
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  function validateAll() {
+    const macInputs = document.querySelectorAll('.mac-input');
+    const psidInputs = document.querySelectorAll('.psid-input');
+
+    const macs = [...macInputs].map(i => i.value.trim()).filter(Boolean);
+    const psids = [...psidInputs].map(i => i.value.trim()).filter(Boolean);
+
+    macInputs.forEach(i => i.classList.remove('error-border'));
+    psidInputs.forEach(i => i.classList.remove('error-border'));
+
+    let valid = true;
+
+    macs.forEach((m, i) => {
+      if (macs.indexOf(m) !== i) {
+        macInputs[i].classList.add('error-border');
+        valid = false;
+      }
+    });
+
+    psids.forEach((p, i) => {
+      const v = Number(p);
+      if (psids.indexOf(p) !== i || v < 0 || v > 63) {
+        psidInputs[i].classList.add('error-border');
+        valid = false;
+      }
+    });
+
+    submitBtn.disabled = !valid;
+    return valid;
+  }
+
+  function setLED(id, color) {
+    const el = document.getElementById(id);
+    el.classList.remove("green", "red", "yellow", "gray");
+    el.classList.add(color);
+  }
+
+  function updateLED(id, state, timestamp) {
+    const now = Date.now() / 1000;
+    
+    // If timestamp is older than 30 seconds, show gray
+    if (now - timestamp > 30) {
+        setLED(id, "gray");
+        return;
+    }
+
+    if (!state) {
+        setLED(id, "yellow"); // unknown / missing
+        return;
+    }
+
+    const s = state.toString().toLowerCase();
+
+    if (s === "up" || s === "active") {
+        setLED(id, "green");
+    } else if (s === "down" || s === "inactive") {
+        setLED(id, "red");
+    } else {
+        setLED(id, "yellow"); // unknown state
+    }
+  }
+
+  // Poll function
+  function pollServices() {
+    fetch("/services_status.json")
+        .then(r => r.json())
+        .then(data => {
+            if (!data.services || !data.timestamp) return;
+
+            const ts = data.timestamp; // seconds
+            Object.entries(data.services).forEach(([name, state]) => {
+                updateLED(name, state, ts);
+            });
+        });
+  }
+
+  // Poll every 5 seconds
+  setInterval(pollServices, 5000);
+  pollServices(); // initial
+
+
+  document.getElementById('addDeviceBtn').addEventListener('click', () => {
+    const tbody = document.getElementById('devicesBody');
+    const nextPsid = getRandomPsid();
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>
+        <input type="text" class="form-control form-control-sm mac-input"
+               name="mac[]" placeholder="xx:xx:xx:xx:xx:xx">
+      </td>
+      <td>
+        <input type="number" class="form-control form-control-sm psid-input"
+               name="psid[]" value="${nextPsid}" min="0" max="63">
+      </td>
+      <td class="text-end">
+        <button type="button" class="btn btn-outline-danger btn-sm removeRowBtn">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+    validateAll();
+  });
+
+  document.addEventListener('input', validateAll);
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('.removeRowBtn')) {
+      e.target.closest('tr').remove();
+      validateAll();
+    }
+  });
+
+  document.getElementById('configForm').addEventListener('reset', () => {
+    setTimeout(() => {
+      document.getElementById('devicesBody').innerHTML = `
+        <tr>
+          <td>
+            <input type="text" class="form-control form-control-sm mac-input"
+                   name="mac[]" placeholder="xx:xx:xx:xx:xx:xx">
+          </td>
+          <td>
+            <input type="number" class="form-control form-control-sm psid-input"
+                   name="psid[]" value="29" min="0" max="63">
+          </td>
+          <td></td>
+        </tr>
+      `;
+      submitBtn.disabled = true;
+    }, 0);
+  });
+
+  document.getElementById('configForm').addEventListener('submit', e => {
+    if (!validateAll()) {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      alertBox.className = 'alert alert-danger';
+      alertBox.textContent =
+        'Fix duplicate MACs, duplicate PSIDs, or PSID values outside 0–63.';
+    }
+  });
+
+  document.getElementById('configForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!validateAll()) return;
+
+    const formData = new FormData(this);
+    const alertBox = document.getElementById('alertBox');
+    const outputCard = document.getElementById('outputCard');
+    const outputContent = document.getElementById('outputContent');
+
+    // Reset alerts and hide output initially
+    alertBox.className = 'd-none';
+    outputCard.style.display = 'none';
+    outputContent.textContent = '';
+
+    // Push config
+    fetch("/", { method: "POST", body: formData })
+      .then(response => response.json())
+      .then(data => {
+        alertBox.className = 'alert ' + (data.status && data.status.toLowerCase().includes("error") ? 'alert-danger' : 'alert-success');
+        alertBox.textContent = data.status || "Config pushed successfully!";
+      })
+      .catch(err => {
+        alertBox.className = 'alert alert-warning';
+        alertBox.textContent = "Warning: Could not push config, attempting to fetch output anyway.";
+        console.error(err);
+      })
+      .finally(() => {
+        // Start polling for output.json after config push
+        pollOutput();
+      });
+  });
+
+  // Polling function (new simplified version)
+  function pollOutput() {
+    const outputCard = document.getElementById('outputCard');
+    const outputContent = document.getElementById('outputContent');
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/output.json");
+        const data = await res.json();
+
+        if (!data.status) {  // Real output available
+          outputCard.style.display = 'block';
+          outputContent.textContent = JSON.stringify(data, null, 2);
+          outputCard.classList.remove('border-warning');
+          outputCard.classList.add('border-success');
+          clearInterval(interval); // stop polling
+        } else {
+          // Show waiting status
+          outputCard.style.display = 'block';
+          outputContent.textContent = data.status;
+          outputCard.classList.remove('border-success', 'border-danger');
+          outputCard.classList.add('border-warning');
+        }
+      } catch (err) {
+        console.error(err);
+        outputCard.style.display = 'block';
+        outputContent.textContent = "Error fetching output.json";
+        outputCard.classList.remove('border-success', 'border-danger');
+        outputCard.classList.add('border-warning');
+      }
+    }, 5000);
+  }
+
+</script>
+
+</body>
+</html>
