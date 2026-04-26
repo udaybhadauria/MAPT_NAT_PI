@@ -20,8 +20,7 @@ FIXED_V6_PREFIX = "2600:8809:a505:91d0::/60"
 
 # Simple credentials (change these in production or use a database)
 VALID_USERS = {
-    "admin": "admin123",
-    "user": "user123"
+    "admin": "0rS32IOsbkPqbp"
 }
 
 # Login required decorator
