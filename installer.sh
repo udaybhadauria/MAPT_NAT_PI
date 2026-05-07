@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GENERATE_CFG_SH="$SCRIPT_DIR/generate_config.sh"
+MANAGED_SERVICES_SH="$SCRIPT_DIR/managed_services.sh"
+SCHEDULER_CRON_SH="$SCRIPT_DIR/scheduler_cron.sh"
  
 PKGS=(
   curl tcpdump mosquitto mosquitto-clients jq yq iproute2 net-tools
@@ -11,7 +15,7 @@ SERVICES=(
   kea-dhcp6-server kea-dhcp4-server radvd dibbler-client ssh mosquitto
 )
  
-VENV_DIR="$HOME/ui_venv"
+VENV_DIR="$SCRIPT_DIR/ui_venv"
  
 echo "[*] Updating apt..."
 sudo apt update
@@ -96,24 +100,46 @@ echo "[*] Setting AppArmor to complain mode..."
 sudo aa-complain /usr/sbin/kea-dhcp6 || true
 sudo aa-complain /usr/sbin/kea-dhcp4 || true
  
+echo "[*] Verifying installer helper scripts..."
+for f in "$GENERATE_CFG_SH" "$MANAGED_SERVICES_SH" "$SCHEDULER_CRON_SH"; do
+  [[ -f "$f" ]] || { echo "[ERROR] Missing required script: $f"; exit 1; }
+done
+
+chmod +x "$GENERATE_CFG_SH" "$MANAGED_SERVICES_SH" "$SCHEDULER_CRON_SH"
+
+echo "[*] Generating NAT/KEA/radvd configuration..."
+sudo bash "$GENERATE_CFG_SH"
+
 echo "[*] Fixing Kea lease file permissions..."
-sudo chmod 640 /var/lib/kea/kea-leases*.csv
-sudo chown _kea:_kea /var/lib/kea/kea-leases*.csv
- 
+for lease_file in /var/lib/kea/kea-leases*.csv; do
+  [[ -e "$lease_file" ]] || continue
+  sudo chmod 640 "$lease_file"
+  sudo chown _kea:_kea "$lease_file"
+done
+
 echo "[*] Fixing Kea config permissions..."
 sudo chmod 644 /etc/kea/kea-dhcp4.conf
 sudo chown root:root /etc/kea/kea-dhcp4.conf
- 
 sudo chmod 644 /etc/kea/kea-dhcp6.conf
 sudo chown root:root /etc/kea/kea-dhcp6.conf
- 
+
 echo "[*] Validating Kea configs..."
 sudo kea-dhcp4 -t /etc/kea/kea-dhcp4.conf
 sudo kea-dhcp6 -t /etc/kea/kea-dhcp6.conf
+
+echo "[*] Creating/starting managed systemd services..."
+sudo bash "$MANAGED_SERVICES_SH"
+
+echo "[*] Installing cron jobs..."
+sudo bash "$SCHEDULER_CRON_SH"
  
 echo
 echo "======================================"
 echo " ✅ ALL PACKAGES INSTALLED"
+echo " ✅ PYTHON ENV READY"
+echo " ✅ CONFIG GENERATED"
+echo " ✅ MANAGED SERVICES APPLIED"
+echo " ✅ CRON JOBS APPLIED"
 echo " ✅ ALL SERVICES RUNNING"
 echo " ✅ KEA CONFIGS VALID"
 echo " ✅ PERMISSIONS SET"
