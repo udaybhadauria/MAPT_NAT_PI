@@ -1,6 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
-CONFIG="/root/NAT_PI/config_ui.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG="$SCRIPT_DIR/config_ui.json"
 
 # Extract base prefix from dhcp6.subnet (remove /xx)
 OLD_PREFIX=$(jq -r '.dhcp6.subnet' "$CONFIG" | sed 's|/.*||')
@@ -19,6 +21,8 @@ if [[ -z "$NEW_PREFIX" || "$NEW_PREFIX" != *"::" ]]; then
   exit 1
 fi
 
+TMP_FILE="$(mktemp)"
+
 jq --arg old "$OLD_PREFIX" --arg new "$NEW_PREFIX" '
   walk(
     if type == "string"
@@ -26,6 +30,6 @@ jq --arg old "$OLD_PREFIX" --arg new "$NEW_PREFIX" '
     else .
     end
   )
-' "$CONFIG" > /tmp/config_ui.json && mv /tmp/config_ui.json "$CONFIG"
+' "$CONFIG" > "$TMP_FILE" && mv "$TMP_FILE" "$CONFIG"
 
 echo "✅ Prefix updated successfully"

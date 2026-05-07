@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BASE_DIR="/root/NAT_PI_2"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="$BASE_DIR/ui_venv"
 
 APP_PY="$BASE_DIR/app.py"
@@ -46,7 +46,7 @@ chmod +x "$WATCHDOG_SH"
 echo "📦 Checking Flask dependency..."
 if ! "$PYTHON" -c "import flask" 2>/dev/null; then
   echo "⚠️ Flask not found in ui_venv — installing..."
-  "$PIP" install flask
+  "$PYTHON" -m pip install flask
 else
   echo "✅ Flask already installed in ui_venv"
 fi
@@ -54,10 +54,9 @@ fi
 # -----------------------------
 # Create app.py systemd service
 # -----------------------------
-if [[ ! -f "$APP_SERVICE" ]]; then
-  echo "🛠 Creating app-pi.service..."
+echo "🛠 Writing app-pi.service..."
 
-  cat > "$APP_SERVICE" <<EOF
+cat > "$APP_SERVICE" <<EOF
 [Unit]
 Description=PI Python Application (Flask)
 After=network-online.target
@@ -79,17 +78,13 @@ TimeoutStopSec=10
 [Install]
 WantedBy=multi-user.target
 EOF
-else
-  echo "✅ app-pi.service already exists"
-fi
 
 # -----------------------------
 # Create watchdog systemd service
 # -----------------------------
-if [[ ! -f "$WATCHDOG_SERVICE" ]]; then
-  echo "🛠 Creating watchdog-br-pi.service..."
+echo "🛠 Writing watchdog-br-pi.service..."
 
-  cat > "$WATCHDOG_SERVICE" <<EOF
+cat > "$WATCHDOG_SERVICE" <<EOF
 [Unit]
 Description=BR PI Watchdog (continuous)
 After=network-online.target
@@ -110,9 +105,6 @@ TimeoutStopSec=10
 [Install]
 WantedBy=multi-user.target
 EOF
-else
-  echo "✅ watchdog-br-pi.service already exists"
-fi
 
 # -----------------------------
 # Reload & manage services

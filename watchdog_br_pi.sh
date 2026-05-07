@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROUTE_SCRIPT="$SCRIPT_DIR/generate_nat_routes.sh"
+
 ########################################
 # Auto-detect LAN interface
 ########################################
@@ -131,7 +134,11 @@ while true; do
       log "🟢 RPI2 back online — triggering service restart"
       restart_services
 
-      bash /root/NAT_PI/generate_nat_routes.sh || log "❌ Route regeneration failed"
+      if [[ -x "$ROUTE_SCRIPT" || -f "$ROUTE_SCRIPT" ]]; then
+        bash "$ROUTE_SCRIPT" || log "❌ Route regeneration failed"
+      else
+        log "⚠️ Route script not found: $ROUTE_SCRIPT"
+      fi
 
       WAITING_FOR_RETURN=0
       DOWN_RESTART_DONE=0

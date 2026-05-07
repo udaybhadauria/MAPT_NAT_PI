@@ -5,7 +5,26 @@ set -e
 # NAT_PI VARIABLES (EDIT ME)
 ############################
 
-LAN_IF=$(ifconfig | awk -F: '/^(enx|eth1)/ {print $1; exit}')
+LAN_IF="${LAN_IF:-}"
+if [[ -z "$LAN_IF" ]]; then
+  LAN_IF=$(ip -o link show | awk -F': ' '{print $2}' | awk '
+    $1 != "lo" && $1 != "eth0" &&
+    $1 !~ /^docker/ && $1 !~ /^veth/ && $1 !~ /^br-/ && $1 !~ /^virbr/ &&
+    $1 !~ /^wl/ {print; exit}
+  ')
+fi
+
+if [[ -z "$LAN_IF" ]]; then
+  echo "❌ Unable to auto-detect LAN interface. Export LAN_IF=<iface> and rerun."
+  echo "Available interfaces:"
+  ip -o link show | awk -F': ' '{print " - " $2}'
+  exit 1
+fi
+
+if ! ip link show "$LAN_IF" >/dev/null 2>&1; then
+  echo "❌ LAN interface '$LAN_IF' does not exist"
+  exit 1
+fi
 
 # IPv4
 IPV4_SUBNET="192.168.12.0/24"
@@ -166,7 +185,9 @@ network:
         - $IPV6_ADDR
 EOF
 
-echo "✅ NAT_PI configuration generated successfully"
+chmod 600 /etc/netplan/01-network-manager-all.yaml
+
+echo "✅ NAT_PI configuration generated successfully (LAN_IF=$LAN_IF)"
 
 #==============================================================
 

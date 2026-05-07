@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GENERATE_CFG_SH="$SCRIPT_DIR/generate_config.sh"
@@ -11,8 +12,13 @@ PKGS=(
   iptables-persistent dibbler-client openssh-server python3-venv
 )
  
-SERVICES=(
+BASE_SERVICES=(
+  ssh mosquitto
+)
+
+FINAL_SERVICES=(
   kea-dhcp6-server kea-dhcp4-server radvd dibbler-client ssh mosquitto
+  app-pi watchdog-br-pi
 )
  
 VENV_DIR="$SCRIPT_DIR/ui_venv"
@@ -24,29 +30,33 @@ echo "[*] Installing packages..."
 sudo apt install -y "${PKGS[@]}"
  
 echo "[*] Verifying packages..."
+MISSING_PKGS=0
 for p in "${PKGS[@]}"; do
   if ! dpkg -s "$p" >/dev/null 2>&1; then
     echo "[ERROR] Package missing: $p"
+    MISSING_PKGS=1
   fi
 done
+[[ "$MISSING_PKGS" -eq 0 ]] || { echo "[ERROR] Package verification failed"; exit 1; }
 echo "[OK] All packages installed."
  
 echo "[*] Reloading systemd..."
 sudo systemctl daemon-reload
  
-echo "[*] Enabling + starting services..."
-for s in "${SERVICES[@]}"; do
+echo "[*] Enabling + starting base services..."
+for s in "${BASE_SERVICES[@]}"; do
   sudo systemctl enable "$s"
   sudo systemctl start "$s"
 done
  
-echo "[*] Verifying services are active..."
-for s in "${SERVICES[@]}"; do
+echo "[*] Verifying base services are active..."
+for s in "${BASE_SERVICES[@]}"; do
   if ! systemctl is-active --quiet "$s"; then
-    echo "[ERROR] Service not running: $s"
+    echo "[ERROR] Base service not running: $s"
+    exit 1
   fi
 done
-echo "[OK] All services running."
+echo "[OK] Base services running."
  
 echo "[*] Configuring Mosquitto listener..."
 MOSQ_CONF="/etc/mosquitto/conf.d/listener.conf"
@@ -76,13 +86,17 @@ fi
 sudo sysctl -p >/dev/null
  
 echo "[*] Creating Python venv..."
+if [[ -d "$VENV_DIR" ]]; then
+  echo "[*] Removing existing venv at $VENV_DIR"
+  rm -rf "$VENV_DIR"
+fi
 python3 -m venv "$VENV_DIR"
  
 echo "[*] Activating venv + installing Python deps..."
 # shellcheck disable=SC1090
 source "$VENV_DIR/bin/activate"
-pip install --upgrade pip
-pip install flask paho-mqtt
+python -m pip install --upgrade pip
+python -m pip install flask paho-mqtt
  
 echo "[*] Verifying Python packages..."
 python - <<'EOF'
@@ -132,6 +146,14 @@ sudo bash "$MANAGED_SERVICES_SH"
 
 echo "[*] Installing cron jobs..."
 sudo bash "$SCHEDULER_CRON_SH"
+
+echo "[*] Verifying final service state..."
+for s in "${FINAL_SERVICES[@]}"; do
+  if ! systemctl is-active --quiet "$s"; then
+    echo "[ERROR] Service not running after install: $s"
+    exit 1
+  fi
+done
  
 echo
 echo "======================================"
